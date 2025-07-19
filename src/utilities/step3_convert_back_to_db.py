@@ -1,6 +1,6 @@
 import re
 def extract_attribute(rv):
-    match = re.match(r'fd\d+_([A-Za-z]+)\d+=\d+', rv)
+    match = re.match(r'fd\d+([A-Za-z]+)\d+=\d+', rv)
     return match.group(1) if match else None
 
 

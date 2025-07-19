@@ -1,8 +1,9 @@
 from itertools import product,combinations
 def preprocess_data(df_data):
     #df_data['uuid'] = [uuid.uuid4() for _ in range(len(df_data))]
-    df_data['uuid'] = range(1, len(df_data) + 1)
-    return df_data
+    cleaned_df = df_data.drop_duplicates().reset_index(drop=True)
+    cleaned_df['uuid'] = range(1, len(cleaned_df) + 1)
+    return cleaned_df
 
 def identify_clusters(table_df, fd_lhs):
     cleaned_df = table_df.drop_duplicates().reset_index(drop=True)
@@ -45,7 +46,7 @@ def create_rv_definitions(df_data,fd_constraint):
                 for i in range(min_actions + 1):
                     for combo in combinations(remaining, i):
                         extended_set = base_set.union(combo)
-                        rv = f"fd{fd_id}_{rhs}{cluster_id}={rv_index}"
+                        rv = f"fd{fd_id}{rhs}{cluster_id}={rv_index}"
                         rv_definitions[rv] = (rhs_value,extended_set)
                         rv_probabilities[rv] = 1.0
                         rv_index+=1
