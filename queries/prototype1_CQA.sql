@@ -1,28 +1,55 @@
 select s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode"  FROM prototype1.students s1  WHERE s1."SID"  = 101 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName") );
+
 select s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode"  FROM prototype1.students s1  WHERE s1."SID"  = 102 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName") );
+
 select s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode"  FROM prototype1.students s1  WHERE s1."SID"  = 103 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName") );
+
 select s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode"  FROM prototype1.students s1  WHERE s1."SID"  = 104 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName") );
+
 select s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode"  FROM prototype1.students s1  WHERE s1."SID"  = 105 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName") );
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."SName" = 'John Bell' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."SName" = 'Claire Stevens' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."SName" = 'Pet Nortan' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."SName" = 'George Bailey' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."SName" = 'Leah Murphy' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."University"  = 'UT' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."University"  = 'AMS' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT s1."SID", s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode" from prototype1.students s1 where s1."University"  = 'EIND' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 SELECT DISTINCT s1."University",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
-SELECT DISTINCT s1."sid",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
-SELECT DISTINCT s1."sname"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
-SELECT DISTINCT s1."address",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
-SELECT DISTINCT s1."emailid",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
-SELECT DISTINCT s1."phonenum",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
-SELECT DISTINCT s1."postcode",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
+SELECT DISTINCT s1."SID",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
+SELECT DISTINCT s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
+SELECT DISTINCT s1."Address",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
+SELECT DISTINCT s1."EmailId",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
+SELECT DISTINCT s1."PhoneNum",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
+SELECT DISTINCT s1."Postcode",s1."SName"  FROM prototype1.students s1 where NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"));
+
 select s1."SID",s1."SName" from prototype1.students s1 where s1."University"  = 'UT' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName")) group by s1."SID",s1."SName";
+
 select s1."SID",s1."SName" from prototype1.students s1 where s1."University"  = 'AMS' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName")) group by s1."SID",s1."SName";
-select s1."SID",s1."SName" from prototype1.students s1 where s1."University"  = 'EIND' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName")) group by s1."SID,s1."SName"";
+
+select s1."SID",s1."SName" from prototype1.students s1 where s1."University"  = 'EIND' and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName")) group by s1."SID",s1."SName";
+
 select s1."University",s1."SName" from prototype1.students s1 where s1."SID" = 101 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"))  group by s1."University",s1."SName";
+
 select s1."University",s1."SName" from prototype1.students s1 where s1."SID" = 102 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"))  group by s1."University",s1."SName";
+
 select s1."University",s1."SName" from prototype1.students s1 where s1."SID" = 103 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"))  group by s1."University",s1."SName";
+
 select s1."University",s1."SName" from prototype1.students s1 where s1."SID" = 104 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"))  group by s1."University",s1."SName";
+
 select s1."University",s1."SName" from prototype1.students s1 where s1."SID" = 105 and NOT EXISTS ( SELECT * FROM prototype1.students  s2 WHERE s1."SID"  = s2."SID" AND (s1."SName"  <> s2."SName"))  group by s1."University",s1."SName";

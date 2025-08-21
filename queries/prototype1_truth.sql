@@ -1,28 +1,55 @@
 SELECT sid,sname,university,address,emailid,phonenum,postcode FROM prototype1.students_truth WHERE sid = 101;
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode FROM prototype1.students_truth WHERE sid = 102;
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode FROM prototype1.students_truth WHERE sid = 103;
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode FROM prototype1.students_truth WHERE sid = 104;
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode FROM prototype1.students_truth WHERE sid = 105;
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where sname = 'John Bell';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where sname = 'Claire Stevens';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where sname = 'Pet Nortan';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where sname = 'George Bailey';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where sname = 'Leah Murphy';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where university = 'UT';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where university = 'AMS';
+
 SELECT sid,sname,university,address,emailid,phonenum,postcode from prototype1.students_truth st where university = 'EIND';
+
 SELECT DISTINCT university,sname FROM prototype1.students_truth;
+
 SELECT DISTINCT sid,sname FROM prototype1.students_truth;
+
 SELECT DISTINCT sname FROM prototype1.students_truth;
+
 SELECT DISTINCT address,sname FROM prototype1.students_truth;
+
 SELECT DISTINCT emailid,sname FROM prototype1.students_truth;
+
 SELECT DISTINCT phonenum,sname FROM prototype1.students_truth;
+
 SELECT DISTINCT postcode,sname FROM prototype1.students_truth;
+
 select sid,sname from prototype1.students_truth st where university = 'UT' group by sid,sname;
+
 select sid,sname from prototype1.students_truth st where university = 'AMS' group by sid,sname;
+
 select sid,sname from prototype1.students_truth st where university = 'EIND' group by sid,sname;
+
 select university,sname  from prototype1.students_truth st where sid = 101 group by university,sname ;
+
 select university,sname  from prototype1.students_truth st where sid = 102 group by university,sname ;
+
 select university,sname  from prototype1.students_truth st where sid = 103 group by university,sname ;
+
 select university,sname  from prototype1.students_truth st where sid = 104 group by university,sname ;
+
 select university,sname  from prototype1.students_truth st where sid = 105 group by university,sname ;

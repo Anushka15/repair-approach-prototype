@@ -1,0 +1,1 @@
+SELECT sid,sname,university,address,emailid,phonenum,postcode FROM prototype1.students_truth WHERE sid = 101;

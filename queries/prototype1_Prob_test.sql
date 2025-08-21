@@ -1,0 +1,1 @@
+SELECT s1."SID" ,s1."SName" ,s1."University" ,s1."Address" ,s1."EmailId" ,s1."PhoneNum" ,s1."Postcode", ROUND(prob(d.dict, s1._sentences::Bdd)::numeric, 4) AS probability FROM prototype1.students_prob s1, prototype1."_dict" d  WHERE s1."SID"  = 101 and d.name = 'students_dict' order by probability desc;
