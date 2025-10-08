@@ -36,7 +36,7 @@ def calculate_expected_values(query_file_name_expected, query_file_name_actual, 
                 sum_prob_wrong = sum(p for row, p in zip(prob_rows, prob_values) if row not in expected_set)
                 sum_prob_total = sum(prob_values)
 
-                exp_precision = sum_prob_correct / sum_prob_total if sum_prob_total > 0 else 0.0
+                exp_precision = sum_prob_correct / sum_prob_total if sum_prob_total > 0 else 1.0
                 exp_recall = sum_prob_correct / len(expected_set) if expected_set else 1.0
                 exp_noise = sum_prob_wrong / sum_prob_total if sum_prob_total > 0 else 0.0
                 true_positives = len(expected_set & set(prob_rows))
@@ -49,7 +49,7 @@ def calculate_expected_values(query_file_name_expected, query_file_name_actual, 
                 false_positives = len(actual_set - expected_set)
                 total_actual = len(expected_set)
                 total_predicted = len(actual_set)
-                exp_precision = true_positives / total_predicted if total_predicted > 0 else 0.0
+                exp_precision = true_positives / total_predicted if total_predicted > 0 else 1.0
                 exp_recall = true_positives / total_actual if total_actual > 0 else 1.0
                 exp_noise = false_positives / total_predicted if total_predicted > 0 else 0.0
                 coverage = true_positives / len(expected_set)
@@ -107,36 +107,47 @@ def compute_precision_recall_at_thresholds(results, thresholds=None):
     return thresholds, avg_precision, avg_recall, avg_f1
 
 
-def plot_precision_recall_at_p(thresholds, avg_precision, avg_recall, avg_f1):
+import matplotlib.pyplot as plt
 
-    # Precision@P
+def plot_precision_recall_at_p(thresholds, avg_precision, avg_recall, avg_f1,cqa_precision,cqa_recall):
+
+    cqa_f1 = 2 * (cqa_precision * cqa_recall) / (cqa_precision + cqa_recall)
+
+    # --- Precision@P ---
     plt.figure(figsize=(8, 5))
-    plt.plot(thresholds, avg_precision, marker='o', label='Precision@P', color='blue')
+    plt.plot(thresholds, avg_precision, marker='o', label='Precision@P (PRA)', color='blue')
+    plt.axhline(y=cqa_precision, color='red', linestyle='--', label=f'CQA Precision ({cqa_precision:.4f})')
     plt.xlabel("Probability Threshold (P)")
     plt.ylabel("Average Precision")
     plt.title("Precision at Probability Threshold P")
+    plt.legend()
     plt.grid(True)
     plt.tight_layout()
     plt.show()
 
-    # Recall@P
+    # --- Recall@P ---
     plt.figure(figsize=(8, 5))
-    plt.plot(thresholds, avg_recall, marker='s', label='Recall@P', color='green')
+    plt.plot(thresholds, avg_recall, marker='s', label='Recall@P (PRA)', color='green')
+    plt.axhline(y=cqa_recall, color='red', linestyle='--', label=f'CQA Recall ({cqa_recall:.4f})')
     plt.xlabel("Probability Threshold (P)")
     plt.ylabel("Average Recall")
     plt.title("Recall at Probability Threshold P")
+    plt.legend()
     plt.grid(True)
     plt.tight_layout()
     plt.show()
 
-    # F1@P
+    # --- F1@P ---
     plt.figure(figsize=(8, 5))
-    plt.plot(thresholds, avg_f1, marker='^', label='F1@P', color='purple')
+    plt.plot(thresholds, avg_f1, marker='^', label='F1@P (PRA)', color='purple')
+    plt.axhline(y=cqa_f1, color='red', linestyle='--', label=f'CQA F1 ({cqa_f1:.4f})')
     plt.xlabel("Probability Threshold (P)")
     plt.ylabel("F1 Score")
     plt.title("F1 Score at Probability Threshold P")
+    plt.legend()
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+
 
 
