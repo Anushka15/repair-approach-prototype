@@ -31,6 +31,7 @@ def create_repaired_rows(rv_definitions, df_data, consistent_rows):
 
     # Step 2: Convert sentence list to a Bdd('...') string
     for row in repaired_rows:
+        print(row)
         sentence_list = row.pop()
         bdd_expr = ' | '.join(sentence_list)
         row.append(bdd_expr)
