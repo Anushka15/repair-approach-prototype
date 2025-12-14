@@ -1,0 +1,11 @@
+sid,sname,university,address,emailid,phonenum,postcode,age
+101,John Bell,UT,Calslaan 10,jb,6,7522MB,21
+102,Claire Stevens,UT,Drienerlolaan 5,cs,10,7523MB,20
+103,Pet Norton,EIND,Insulindelaan 2,pn,11,7525NB,19
+104,George Bailey,EIND,Onze Lieve Vrouw 7,sn,12,7525NB,18
+105,Leah Murphy,AMS,Science Park 101,gn,13,7425NB,25
+101,David Wong,EIND,Kanaalstraat 3,dw,14,5612CD,17
+103,Maria Rossi,AMS,Wibautstraat 20,mr,15,1011AB,16
+106,Rahul Mehta,UT,Hengelosestraat 15,rm,16,7522MB,23
+102,Aisha Khan,AMS,Spuistraat 45,ak,17,1012WX,22
+104,Sofia Janssen,UT,De Klomp 8,sj,18,7523MB,20

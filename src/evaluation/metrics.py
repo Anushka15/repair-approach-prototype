@@ -106,9 +106,6 @@ def compute_precision_recall_at_thresholds(results, thresholds=None):
     ]
     return thresholds, avg_precision, avg_recall, avg_f1
 
-
-import matplotlib.pyplot as plt
-
 def plot_precision_recall_at_p(thresholds, avg_precision, avg_recall, avg_f1,cqa_precision,cqa_recall):
 
     cqa_f1 = 2 * (cqa_precision * cqa_recall) / (cqa_precision + cqa_recall)

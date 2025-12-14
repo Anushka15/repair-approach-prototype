@@ -1,7 +1,12 @@
+import math
 from itertools import product,combinations
 from collections import defaultdict
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_float_dtype
+
+MAX_VARNAME_LEN = 11
+
+
 def preprocess_data(df_data):
     #df_data['uuid'] = [uuid.uuid4() for _ in range(len(df_data))]
     #cleaned_df = df_data.drop_duplicates().reset_index(drop=True)
@@ -95,22 +100,7 @@ def compute_actions(df_data, fd_constraints, constraint_hardness, delete_cost=1,
             all_uuid_set = set(all_uuids)
             uuid_to_rhs = dict(zip(all_uuids, cluster[rhs].tolist()))
             if min_actions == 0:
-                row_def = {
-                    'FD': fd_id,
-                    'LHS': lhs,
-                    'Cluster': cluster_id,
-                    'Tuples': all_uuids,
-                    'TargetValue': '',
-                    'DR': [],
-                    'UR': [],
-                    'Cost': 0,
-                    'min_cost': min_actions,
-                    'rv': '1'
-                }
-                fd_repairs.append(row_def)
                 continue
-
-
             rv_counter = 1
 
             for uuid in all_uuids:
@@ -130,7 +120,13 @@ def compute_actions(df_data, fd_constraints, constraint_hardness, delete_cost=1,
 
                         cost = (len(dr) * delete_cost) + (len(ur) * update_cost)
 
-                        rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
+                        varname = f"fd{fd_id}{rhs}{cluster_id}"
+                        if len(varname) > MAX_VARNAME_LEN:
+                            varname = varname[:MAX_VARNAME_LEN]
+
+                        rv = f"{varname}={rv_counter}"
+
+                        #rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
                         row_def = {
                             'FD': fd_id,
                             'LHS': lhs,
@@ -175,7 +171,7 @@ def combine_fd_repairs_for_cluster(fd_actions, cluster_id,delete_cost,update_cos
         fd_info.append((fd_id, min_cost_fd, cand))
 
     if not fd_info:
-        return []
+        return [],0
 
     fd_ids = [fd_id for (fd_id, _, _) in fd_info]
     min_cost_sum = sum(min_cost_fd for (_, min_cost_fd, _) in fd_info)
@@ -252,19 +248,20 @@ def combine_fd_repairs_for_cluster(fd_actions, cluster_id,delete_cost,update_cos
             'Cost': combined_cost,
             'sentence': sentence
         })
-
-    return combined_repairs
+    return combined_repairs, math.prod(len(lst) for lst in repair_lists)
 
 
 def min_cost_actions(cluster_ids,actions,delete_cost,update_cost):
     combined_actions = []
+    total_repair = 0
     for cluster_id in cluster_ids:
-        combined = combine_fd_repairs_for_cluster(actions, cluster_id,delete_cost,update_cost)
+        combined,num_repairs = combine_fd_repairs_for_cluster(actions, cluster_id,delete_cost,update_cost)
+        total_repair += num_repairs
         if combined:
             min_cost = min(r['Cost'] for r in combined)
             combined_actions.append([r for r in combined if r['Cost'] == min_cost])
     all_actions = [item for sublist in combined_actions for item in sublist]
-    return all_actions
+    return all_actions,total_repair/len(cluster_ids)
 
 
 
@@ -279,9 +276,10 @@ def cast_column_dtype(val_str, col_series):
 
 def apply_combined_actions(df, combined_action_list, uuid_col="uuid"):
     repaired_dfs = []
-
+    all_tuple_ids = set()
     for action_idx, action in enumerate(combined_action_list, start=1):
         tuple_ids = [str(tid) for tid in action.get("Tuples", [])]
+        all_tuple_ids.update(tuple_ids)
         df_rep = df[df[uuid_col].astype(str).isin(tuple_ids)].copy()
         for ur in action.get("UR", []):
             tup_part, assign_part = ur.split(":", 1)
@@ -294,6 +292,9 @@ def apply_combined_actions(df, combined_action_list, uuid_col="uuid"):
 
         repaired_dfs.append(df_rep)
 
+    clean = df[~df[uuid_col].astype(str).isin(all_tuple_ids)].copy()
+    clean["_sentences"] = 1
+    repaired_dfs.append(clean)
     return repaired_dfs
 
 
@@ -309,11 +310,11 @@ def condition_probability_for_used_rvs(rv_probs):
         group_sum = sum(rv_probs[k] for k in keys)
         if group_sum > 0:
             for k in keys:
-                rv_probs[k] = rv_probs[k] / group_sum
+                rv_probs[k] = round((rv_probs[k] / group_sum),4)
         else:
             n = len(keys)
             for k in keys:
-                rv_probs[k] = 1.0 / n
+                rv_probs[k] = round((1.0 / n),4)
 
     return rv_probs
 

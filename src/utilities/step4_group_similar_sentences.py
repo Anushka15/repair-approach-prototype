@@ -21,6 +21,8 @@ def group_similar_rows_together(repaired_df, join_op=" | "):
         if not ordered:
             return ""
 
+        if len(ordered) == 1:
+            return ordered[0]
         return join_op.join(f"({s})" for s in ordered)
 
     merged_df = (
