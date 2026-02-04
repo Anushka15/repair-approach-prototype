@@ -3,6 +3,7 @@ from itertools import product,combinations
 from collections import defaultdict
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_float_dtype
+from collections import defaultdict
 
 MAX_VARNAME_LEN = 11
 
@@ -79,30 +80,245 @@ def compute_scores_for_rvs(prob_type, cost, eps=1e-9):
 
 
 def compute_actions(df_data, fd_constraints, constraint_hardness, delete_cost=1, update_cost=1, eps=1e-9,
-                    prob_type='uniform'):
-    actions_list = []
+                    prob_type='UNIFORM'):
     rv_probs = {}
 
     if not fd_constraints:
-        return actions_list, []
+        return {}, [], rv_probs
 
     common_lhs = fd_constraints[0][0]
     clusters = list(identify_clusters(df_data, common_lhs))
     cluster_ids = list(range(1, len(clusters) + 1))
-    for fd_id, (lhs, [rhs]) in enumerate(fd_constraints, start=1):
-        fd_repairs = []
-        fd_rv_scores = {}
-        total_score = 0.0
-        for cluster_id, (cluster_key, cluster) in enumerate(clusters, start=1):
+    actions_by_cluster = {cid: {} for cid in cluster_ids}
 
+    for cluster_id, (cluster_key, cluster) in enumerate(clusters, start=1):
+        all_uuids = cluster["uuid"].tolist()
+        all_uuid_set = set(all_uuids)
+
+        for fd_id, (lhs, [rhs]) in enumerate(fd_constraints, start=1):
             min_actions, num_rows, kmax = find_minimum_actions(cluster, rhs)
-            all_uuids = cluster['uuid'].tolist()
-            all_uuid_set = set(all_uuids)
-            uuid_to_rhs = dict(zip(all_uuids, cluster[rhs].tolist()))
             if min_actions == 0:
+                actions_by_cluster[cluster_id][fd_id] = []
                 continue
-            rv_counter = 1
 
+            uuid_to_rhs = dict(zip(all_uuids, cluster[rhs].tolist()))
+
+            fd_repairs = []
+            fd_scores = {}
+            total_score = 0.0
+            rv_counter = 1
+            if kmax > 0.5 * num_rows:
+                uuid_dict = mark_high_frequence_subclusters(cluster, rhs, kmax)
+                all_uuids = cluster['uuid']
+                for fd_rhs_value, uuid_list in uuid_dict.items():
+                    correct_value = cluster.loc[cluster['uuid'] == uuid_list[0], rhs].iloc[0]
+                    base_set = set(uuid_list)
+                    remaining = list(set(all_uuids) - base_set)
+                    for i in range(min_actions + 1):
+                        for combo in combinations(remaining, i):
+                            extended_set = base_set.union(combo)
+                            dr = list(all_uuid_set - extended_set)
+                            ur = [
+                                upd_uuid
+                                for upd_uuid in extended_set
+                                if uuid_to_rhs[upd_uuid] != correct_value
+                            ]
+
+                            cost = (len(dr) * delete_cost) + (len(ur) * update_cost)
+                            prefix = f"fd{fd_id}"
+                            suffix = str(cluster_id)
+
+                            rhs_budget = MAX_VARNAME_LEN - len(prefix) - len(suffix)
+                            if rhs_budget <= 0:
+                                raise ValueError("MAX_VARNAME_LEN too small to fit fd_id + cluster_id")
+
+                            rhs_part = rhs[:rhs_budget]
+                            varname = f"{prefix}{rhs_part}{suffix}"
+
+                            rv = f"{varname}={rv_counter}"
+                            # varname = f"fd{fd_id}{rhs}{cluster_id}"
+                            # if len(varname) > MAX_VARNAME_LEN:
+                            #     varname = varname[:MAX_VARNAME_LEN]
+
+                            rv = f"{varname}={rv_counter}"
+                            dr_ids = frozenset(str(t) for t in dr)
+                            ur_tids = frozenset(str(t) for t in ur)
+                            ur_cells = tuple(((str(t), rhs), correct_value) for t in ur_tids)
+
+                            # rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
+                            row_def = {
+                                'FD': fd_id,
+                                'LHS': lhs,
+                                'Cluster': cluster_id,
+                                'Tuples': extended_set,
+                                'TargetValue': correct_value,
+                                'DR': dr,
+                                'UR': [f"{r}:{rhs}={correct_value}" for r in ur],
+                                'Cost': cost,
+                                'min_cost': min_actions,
+                                'rv': rv,
+                                "_dr_set": dr_ids,
+                                "_ur_tids": ur_tids,
+                                "_ur_cells": ur_cells
+                            }
+
+                            score = compute_scores_for_rvs(prob_type, cost, eps) * constraint_hardness[fd_id - 1]
+                            fd_scores[rv] = score
+                            total_score += score
+                            rv_counter += 1
+                            fd_repairs.append(row_def)
+            else:
+                for uuid in all_uuids:
+                    correct_value = uuid_to_rhs[uuid]
+                    base_set = {uuid}
+                    remaining = list(all_uuid_set - base_set)
+
+                    for i in range(num_rows + 1):
+                        for combo in combinations(remaining, i):
+                            extended_set = base_set.union(combo)
+                            dr = list(all_uuid_set - extended_set)
+                            ur = [
+                                upd_uuid
+                                for upd_uuid in extended_set
+                                if uuid_to_rhs[upd_uuid] != correct_value
+                            ]
+
+                            cost = (len(dr) * delete_cost) + (len(ur) * update_cost)
+
+                            varname = f"fd{fd_id}{rhs}{cluster_id}"
+                            if len(varname) > MAX_VARNAME_LEN:
+                                varname = varname[:MAX_VARNAME_LEN]
+
+                            rv = f"{varname}={rv_counter}"
+                            dr_ids = frozenset(str(t) for t in dr)
+                            ur_tids = frozenset(str(t) for t in ur)
+                            ur_cells = tuple(((str(t), rhs), correct_value) for t in ur_tids)
+
+                            # rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
+                            row_def = {
+                                'FD': fd_id,
+                                'LHS': lhs,
+                                'Cluster': cluster_id,
+                                'Tuples': extended_set,
+                                'TargetValue': correct_value,
+                                'DR': dr,
+                                'UR': [f"{r}:{rhs}={correct_value}" for r in ur],
+                                'Cost': cost,
+                                'min_cost': min_actions,
+                                'rv': rv,
+                                "_dr_set": dr_ids,
+                                "_ur_tids": ur_tids,
+                                "_ur_cells": ur_cells
+                            }
+
+                            score = compute_scores_for_rvs(prob_type, cost, eps) * constraint_hardness[fd_id - 1]
+                            fd_scores[rv] = score
+                            total_score += score
+                            rv_counter += 1
+                            fd_repairs.append(row_def)
+
+
+            if total_score > 0:
+                for rv, sc in fd_scores.items():
+                    rv_probs[rv] = sc / total_score
+
+            actions_by_cluster[cluster_id][fd_id] = fd_repairs
+
+    return actions_by_cluster, cluster_ids, rv_probs
+
+
+def compute_actions_batch(df_data, fd_constraints, constraint_hardness, cluster_id, delete_cost=1,
+                    update_cost=1, eps=1e-9,
+                    prob_type='UNIFORM'):
+    actions_list = []
+    rv_probs = {}
+
+    if not fd_constraints:
+        return {}, [], rv_probs
+
+    common_lhs = fd_constraints[0][0]
+    clusters = identify_clusters(df_data, common_lhs)
+    cluster_key, cluster = next(iter(clusters))
+    cluster_ids = [cluster_id]
+    actions_by_cluster = {cid: {} for cid in cluster_ids}
+
+    all_uuids = cluster["uuid"].tolist()
+    all_uuid_set = set(all_uuids)
+
+    for fd_id, (lhs, [rhs]) in enumerate(fd_constraints, start=1):
+        min_actions, num_rows, kmax = find_minimum_actions(cluster, rhs)
+
+        if min_actions == 0:
+            actions_by_cluster[cluster_id][fd_id] = []
+            continue
+
+        uuid_to_rhs = dict(zip(all_uuids, cluster[rhs].tolist()))
+        fd_repairs = []
+        fd_scores = {}
+        total_score = 0.0
+        rv_counter = 1
+
+        if kmax > 0.3 * num_rows:
+            uuid_dict = mark_high_frequence_subclusters(cluster,rhs,kmax)
+            all_uuids = cluster['uuid']
+            for fd_rhs_value, uuid_list in uuid_dict.items():
+                correct_value = cluster.loc[cluster['uuid'] == uuid_list[0], rhs].iloc[0]
+                base_set = set(uuid_list)
+                remaining = list(set(all_uuids) - base_set)
+                for i in range(min_actions + 1):
+                    for combo in combinations(remaining, i):
+                        extended_set = base_set.union(combo)
+                        dr = list(all_uuid_set - extended_set)
+                        ur = [
+                            upd_uuid
+                            for upd_uuid in extended_set
+                            if uuid_to_rhs[upd_uuid] != correct_value
+                        ]
+
+                        cost = (len(dr) * delete_cost) + (len(ur) * update_cost)
+                        prefix = f"fd{fd_id}"
+                        suffix = str(cluster_id)
+
+                        rhs_budget = MAX_VARNAME_LEN - len(prefix) - len(suffix)
+                        if rhs_budget <= 0:
+                            raise ValueError("MAX_VARNAME_LEN too small to fit fd_id + cluster_id")
+
+                        rhs_part = rhs[:rhs_budget]
+                        varname = f"{prefix}{rhs_part}{suffix}"
+
+                        rv = f"{varname}={rv_counter}"
+                        # varname = f"fd{fd_id}{rhs}{cluster_id}"
+                        # if len(varname) > MAX_VARNAME_LEN:
+                        #     varname = varname[:MAX_VARNAME_LEN]
+
+                        rv = f"{varname}={rv_counter}"
+                        dr_ids = frozenset(str(t) for t in dr)
+                        ur_tids = frozenset(str(t) for t in ur)
+                        ur_cells = tuple(((str(t), rhs), correct_value) for t in ur_tids)
+
+                        # rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
+                        row_def = {
+                            'FD': fd_id,
+                            'LHS': lhs,
+                            'Cluster': cluster_id,
+                            'Tuples': extended_set,
+                            'TargetValue': correct_value,
+                            'DR': dr,
+                            'UR': [f"{r}:{rhs}={correct_value}" for r in ur],
+                            'Cost': cost,
+                            'min_cost': min_actions,
+                            'rv': rv,
+                            "_dr_set": dr_ids,
+                            "_ur_tids": ur_tids,
+                            "_ur_cells": ur_cells
+                        }
+
+                        score = compute_scores_for_rvs(prob_type, cost, eps) * constraint_hardness[fd_id - 1]
+                        fd_scores[rv] = score
+                        total_score += score
+                        rv_counter += 1
+                        fd_repairs.append(row_def)
+        else:
             for uuid in all_uuids:
                 correct_value = uuid_to_rhs[uuid]
                 base_set = {uuid}
@@ -119,14 +335,16 @@ def compute_actions(df_data, fd_constraints, constraint_hardness, delete_cost=1,
                         ]
 
                         cost = (len(dr) * delete_cost) + (len(ur) * update_cost)
-
                         varname = f"fd{fd_id}{rhs}{cluster_id}"
                         if len(varname) > MAX_VARNAME_LEN:
                             varname = varname[:MAX_VARNAME_LEN]
 
                         rv = f"{varname}={rv_counter}"
+                        dr_ids = frozenset(str(t) for t in dr)
+                        ur_tids = frozenset(str(t) for t in ur)
+                        ur_cells = tuple(((str(t), rhs), correct_value) for t in ur_tids)
 
-                        #rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
+                        # rv = f"fd{fd_id}{rhs}{cluster_id}={rv_counter}"
                         row_def = {
                             'FD': fd_id,
                             'LHS': lhs,
@@ -137,43 +355,53 @@ def compute_actions(df_data, fd_constraints, constraint_hardness, delete_cost=1,
                             'UR': [f"{r}:{rhs}={correct_value}" for r in ur],
                             'Cost': cost,
                             'min_cost': min_actions,
-                            'rv': rv
+                            'rv': rv,
+                            "_dr_set": dr_ids,
+                            "_ur_tids": ur_tids,
+                            "_ur_cells": ur_cells
                         }
+
                         score = compute_scores_for_rvs(prob_type, cost, eps) * constraint_hardness[fd_id - 1]
-                        fd_rv_scores[rv] = score
+                        fd_scores[rv] = score
                         total_score += score
                         rv_counter += 1
                         fd_repairs.append(row_def)
 
-        fd_rv_probs = {}
-        for fd_rv in fd_rv_scores:
-            fd_rv_probs[fd_rv] = fd_rv_scores[fd_rv] / total_score
-        rv_probs.update(fd_rv_probs)
-        actions_list.append(fd_repairs)
+        if total_score > 0:
+            for rv, sc in fd_scores.items():
+                rv_probs[rv] = sc / total_score
 
-    return actions_list, cluster_ids, rv_probs
+        actions_by_cluster[cluster_id][fd_id] = fd_repairs
+    return actions_by_cluster, cluster_ids, rv_probs
 
 
+
+
+import math
 
 def parse_tuple_id(ur_str):
     return ur_str.split(':', 1)[0]
 
 
-def combine_fd_repairs_for_cluster(fd_actions, cluster_id,delete_cost,update_cost):
+def combine_fd_repairs_for_cluster(actions_by_cluster, cluster_id, delete_cost, update_cost):
+    # NEW: directly fetch this cluster’s per-FD repairs
+    per_fd_map = actions_by_cluster.get(cluster_id, {})
+    if not per_fd_map:
+        return [], 0
+
     fd_info = []
-    for per_fd_repairs in fd_actions:
-        cand = [r for r in per_fd_repairs if r['Cluster'] == cluster_id]
+    for fd_id, cand in per_fd_map.items():
         if not cand:
             continue
-
-        fd_id = cand[0]['FD']
         min_cost_fd = min(r['Cost'] for r in cand)
         fd_info.append((fd_id, min_cost_fd, cand))
 
     if not fd_info:
-        return [],0
+        return [], 0
 
-    fd_ids = [fd_id for (fd_id, _, _) in fd_info]
+    # Keep a deterministic FD order (optional, but nice)
+    fd_info.sort(key=lambda x: x[0])
+
     min_cost_sum = sum(min_cost_fd for (_, min_cost_fd, _) in fd_info)
 
     combined_repairs = []
@@ -190,7 +418,6 @@ def combine_fd_repairs_for_cluster(fd_actions, cluster_id,delete_cost,update_cos
         combined_tuple_ids = set()
 
         for r in combo:
-
             rv = r.get('rv')
             if rv:
                 rv_parts.append(rv)
@@ -215,7 +442,8 @@ def combine_fd_repairs_for_cluster(fd_actions, cluster_id,delete_cost,update_cos
             combined_dr_ids |= dr_ids
             combined_ur_ids |= ur_ids
 
-            if len(combined_dr_ids | combined_ur_ids) > min_cost_sum:
+            partial_cost = delete_cost * len(combined_dr_ids) + update_cost * len(combined_ur_ids)
+            if partial_cost > min_cost_sum:
                 conflict = True
                 break
 
@@ -248,20 +476,157 @@ def combine_fd_repairs_for_cluster(fd_actions, cluster_id,delete_cost,update_cos
             'Cost': combined_cost,
             'sentence': sentence
         })
+
     return combined_repairs, math.prod(len(lst) for lst in repair_lists)
+
+def combine_fd_repairs_for_cluster_bt(actions_by_cluster, cluster_id, delete_cost, update_cost):
+    per_fd_map = actions_by_cluster.get(cluster_id, {})
+    if not per_fd_map:
+        return [], 0, {}
+
+    fd_info = []
+    for fd_id, cand in per_fd_map.items():
+        if not cand:
+            continue
+        min_cost_fd = min(r["Cost"] for r in cand)
+        fd_info.append((fd_id, min_cost_fd, cand))
+
+    if not fd_info:
+        return [], 0, {}
+
+    bound = sum(min_cost_fd for (_, min_cost_fd, _) in fd_info)
+    total_repairs_possible = math.prod(len(cand) for (_, _, cand) in fd_info)
+
+    fd_info.sort(key=lambda x: len(x[2]))  # ordering only affects speed, not correctness
+
+    combined_repairs = []
+    seen = set()
+
+    combined_dr_ids = set()
+    combined_ur_ids = set()
+    combined_ur_strings = set()
+    combined_tuple_ids = set()
+    rv_pairs = []
+
+    stats = {
+        "dfs_calls": 0,
+        "pruned_cost_at_entry": 0,
+        "pruned_cost_after_apply": 0,
+        "pruned_conflict": 0,
+        "leaf_reached": 0,      # number of full FD selections that passed pruning
+        "solutions_added": 0,   # number appended (after dedup)
+    }
+
+    def dfs(i: int):
+        stats["dfs_calls"] += 1
+
+        partial_cost = delete_cost * len(combined_dr_ids) + update_cost * len(combined_ur_ids)
+        if partial_cost > bound:
+            stats["pruned_cost_at_entry"] += 1
+            return
+
+        if i == len(fd_info):
+            stats["leaf_reached"] += 1
+            sentence = " & ".join(rv for _, rv in sorted(rv_pairs, key=lambda x: x[0]))
+            key = (tuple(sorted(combined_dr_ids)), tuple(sorted(combined_ur_strings)), sentence)
+            if key in seen:
+                return
+            seen.add(key)
+            combined_repairs.append({
+                "Cluster": cluster_id,
+                "DR": sorted(combined_dr_ids),
+                "UR": sorted(combined_ur_strings),
+                "Tuples": sorted(combined_tuple_ids),
+                "Cost": partial_cost,
+                "sentence": sentence
+            })
+            stats["solutions_added"] += 1
+            return
+
+        fd_id, _, cand_list = fd_info[i]
+
+        for r in cand_list:
+            dr_ids = set(r.get("_dr_set", {str(t) for t in r["DR"]}))
+            ur_ids = set(r.get("_ur_tids", {parse_tuple_id(u) for u in r["UR"]}))
+
+            if (dr_ids & combined_ur_ids) or (ur_ids & combined_dr_ids):
+                stats["pruned_conflict"] += 1
+                continue
+
+            add_dr = dr_ids - combined_dr_ids
+            add_ur = ur_ids - combined_ur_ids
+
+            combined_dr_ids.update(add_dr)
+            combined_ur_ids.update(add_ur)
+
+            new_cost = delete_cost * len(combined_dr_ids) + update_cost * len(combined_ur_ids)
+            if new_cost > bound:
+                stats["pruned_cost_after_apply"] += 1
+                combined_ur_ids.difference_update(add_ur)
+                combined_dr_ids.difference_update(add_dr)
+                continue
+
+            add_ur_str = set(r["UR"]) - combined_ur_strings
+            combined_ur_strings.update(add_ur_str)
+
+            add_tuples = {str(t) for t in r["Tuples"]} - combined_tuple_ids
+            combined_tuple_ids.update(add_tuples)
+
+            rv = r.get("rv")
+            if rv:
+                rv_pairs.append((fd_id, rv))
+
+            dfs(i + 1)
+
+            if rv:
+                rv_pairs.pop()
+            combined_tuple_ids.difference_update(add_tuples)
+            combined_ur_strings.difference_update(add_ur_str)
+            combined_ur_ids.difference_update(add_ur)
+            combined_dr_ids.difference_update(add_dr)
+
+    dfs(0)
+    return combined_repairs, total_repairs_possible,stats
 
 
 def min_cost_actions(cluster_ids,actions,delete_cost,update_cost):
     combined_actions = []
     total_repair = 0
     for cluster_id in cluster_ids:
-        combined,num_repairs = combine_fd_repairs_for_cluster(actions, cluster_id,delete_cost,update_cost)
+        combined,num_repairs,stats = combine_fd_repairs_for_cluster_bt(actions, cluster_id,delete_cost,update_cost)
+
         total_repair += num_repairs
         if combined:
             min_cost = min(r['Cost'] for r in combined)
             combined_actions.append([r for r in combined if r['Cost'] == min_cost])
     all_actions = [item for sublist in combined_actions for item in sublist]
-    return all_actions,total_repair/len(cluster_ids)
+    return all_actions,round(total_repair/len(cluster_ids))
+
+
+def min_cost_actions_pruned(cluster_ids,actions,delete_cost,update_cost):
+
+    total_cartesian = 0
+    total_computed = 0
+    combined_actions = []
+    inconsistent_cluster_count = 0
+    for cluster_id in cluster_ids:
+        prune_actions_by_global_bound(actions, cluster_id)
+        combined,cartesian, stats = combine_fd_repairs_for_cluster_bt(actions, cluster_id,delete_cost,update_cost)
+        if combined:
+            leaf = stats.get("leaf_reached", 0)
+            total_cartesian += cartesian
+            total_computed += len(combined)
+            inconsistent_cluster_count += 1
+            min_cost = min(r['Cost'] for r in combined)
+            combined_actions.append([r for r in combined if r['Cost'] == min_cost])
+    all_actions = [item for sublist in combined_actions for item in sublist]
+    # if inconsistent_cluster_count != 0:
+    #     avg_cartesian_possible = int(total_cartesian / inconsistent_cluster_count)
+    #     avg_cartesian_computed = int(total_computed / inconsistent_cluster_count)
+    # else:
+    #     avg_cartesian_possible,avg_cartesian_computed = 0,0
+    return all_actions,total_cartesian,total_computed
+
 
 
 
@@ -336,3 +701,75 @@ def filter_and_condition_min_cost_rvs(rv_probs,
         if rv not in used_rvs:
             del rv_probs[rv]
     return condition_probability_for_used_rvs(rv_probs)
+
+
+
+
+def _ur_tid_set(r):
+    return {parse_tuple_id(u) for u in r.get("UR", [])}
+
+def _dr_tid_set(r):
+    return {str(t) for t in r.get("DR", [])}
+
+def prune_nonmin_actions_no_overlap(actions_by_cluster, cluster_id):
+    per_fd = actions_by_cluster.get(cluster_id, {})
+    if not per_fd:
+        return
+    min_cost = {}
+    for fd_id, cand in per_fd.items():
+        if cand:
+            min_cost[fd_id] = min(r["Cost"] for r in cand)
+
+    dr_mask = defaultdict(int)
+    ur_mask = defaultdict(int)
+    for fd_id, cand in per_fd.items():
+        bit = 1 << (fd_id - 1)
+        for r in cand:
+            r["_dr_set"] = _dr_tid_set(r)
+            r["_ur_set"] = _ur_tid_set(r)
+            for tid in r["_dr_set"]:
+                dr_mask[tid] |= bit
+            for tid in r["_ur_set"]:
+                ur_mask[tid] |= bit
+    for fd_id, cand in list(per_fd.items()):
+        if not cand:
+            continue
+        bit = 1 << (fd_id - 1)
+        mc = min_cost[fd_id]
+
+        new_cand = []
+        for r in cand:
+            if r["Cost"] == mc:
+                new_cand.append(r)
+                continue
+            dr_overlaps_other = any((dr_mask[tid] & ~bit) != 0 for tid in r["_dr_set"])
+            ur_overlaps_other = any((ur_mask[tid] & ~bit) != 0 for tid in r["_ur_set"])
+
+            if dr_overlaps_other or ur_overlaps_other:
+                new_cand.append(r)
+
+        per_fd[fd_id] = new_cand
+
+
+def prune_actions_by_global_bound(actions_by_cluster, cluster_id):
+    per_fd = actions_by_cluster.get(cluster_id, {})
+    if not per_fd:
+        return 0
+    mins = []
+    for fd_id, cand in per_fd.items():
+        if cand:
+            mins.append(min(r["Cost"] for r in cand))
+    if not mins:
+        return 0
+
+    bound = sum(mins)
+
+    removed = 0
+    for fd_id, cand in per_fd.items():
+        if not cand:
+            continue
+        before = len(cand)
+        per_fd[fd_id] = [r for r in cand if r["Cost"] <= bound]
+        removed += before - len(per_fd[fd_id])
+
+

@@ -1,0 +1,1 @@
+SELECT t.tid, t."ProviderNumber" , t."HospitalName" ,t."Address1" ,t."City" ,t."State" ,t."ZipCode", t."CountyName" , t."PhoneNumber", t."HospitalType", t."HospitalOwner" FROM prototype_fp.hospital_prob t WHERE t.tid = :tid;

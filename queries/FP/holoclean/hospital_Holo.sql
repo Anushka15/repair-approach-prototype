@@ -1,0 +1,1 @@
+select t."_tid_",t."ProviderNumber" , t."HospitalName" ,t."Address1" ,t."City" ,t."State" ,t."ZipCode", t."CountyName" , t."PhoneNumber", t."HospitalType", t."HospitalOwner" from hospital_repaired  t where t."_tid_"  = :tid;

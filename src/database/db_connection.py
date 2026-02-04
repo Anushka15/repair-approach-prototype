@@ -1,13 +1,16 @@
 # database/connection.py
 
 from sqlalchemy import create_engine,text
-from config.config import DATABASE
+from config.config import DATABASES
+from sqlalchemy.engine import URL
 
-def create_engine_for_db():
-    try:
-        db_url = f"{DATABASE['driver']}://{DATABASE['user']}:{DATABASE['password']}@{DATABASE['host']}:{DATABASE['port']}/{DATABASE['dbname']}"
-        engine = create_engine(db_url)
-        return engine
-    except Exception as e:
-        print(f"Error connecting to the database: {e}")
-        return None
+def create_engine_for_db(which: str = "primary"):
+    cfg = DATABASES[which]
+    url = URL.create(drivername=cfg["driver"],
+        username=cfg["user"],
+        password=cfg["password"],
+        host=cfg["host"],
+        port=cfg["port"],
+        database=cfg["dbname"],
+    )
+    return create_engine(url)

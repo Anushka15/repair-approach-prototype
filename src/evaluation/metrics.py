@@ -2,6 +2,7 @@ from src.database.fetch_data import *
 from sqlalchemy import text
 import numpy as np
 import matplotlib.pyplot as plt
+from contextlib import nullcontext
 
 def load_queries_by_blank_lines(filepath):
     with open(filepath, 'r') as f:
@@ -9,9 +10,9 @@ def load_queries_by_blank_lines(filepath):
     query_blocks = [q.strip() for q in content.split('\n\n') if q.strip()]
     return query_blocks
 
-def calculate_expected_values(query_file_name_expected, query_file_name_actual, engine):
+def calculate_expected_values(query_file_name_expected, query_file_name_actual, algorithm_name, engine1,old_table_name,new_table_name,engine2=None,parameters=None):
 
-    is_probabilistic = "prob" in query_file_name_actual.lower()
+    is_probabilistic = (algorithm_name == "PRA")
 
     expected_queries = load_queries_by_blank_lines(query_file_name_expected)
     actual_queries = load_queries_by_blank_lines(query_file_name_actual)
@@ -21,11 +22,26 @@ def calculate_expected_values(query_file_name_expected, query_file_name_actual, 
 
     results = []
     results_with_truth_set = []
-    with engine.connect() as conn:
+    conn2_ctx = engine2.connect() if algorithm_name == "Holo" else nullcontext()
+
+    with engine1.connect() as conn, conn2_ctx as conn2:
         for idx, (expected_q, actual_q) in enumerate(zip(expected_queries, actual_queries), start=1):
 
-            expected_result = conn.execute(text(expected_q)).fetchall()
-            actual_result = conn.execute(text(actual_q)).fetchall()
+            if algorithm_name == "CQA":
+                actual_q = actual_q.replace(old_table_name, new_table_name)
+
+            if parameters:  # dict like {"tid": ...}
+                expected_result = conn.execute(text(expected_q), parameters).fetchall()
+                if algorithm_name == "Holo":
+                    actual_result = conn2.execute(text(actual_q), parameters).fetchall()
+                else:
+                    actual_result = conn.execute(text(actual_q), parameters).fetchall()
+            else:
+                expected_result = conn.execute(text(expected_q)).fetchall()
+                if algorithm_name == "Holo":
+                    actual_result = conn2.execute(text(actual_q)).fetchall()
+                else:
+                    actual_result = conn.execute(text(actual_q)).fetchall()
 
             expected_set = set(expected_result)
             if is_probabilistic:
@@ -41,6 +57,10 @@ def calculate_expected_values(query_file_name_expected, query_file_name_actual, 
                 exp_noise = sum_prob_wrong / sum_prob_total if sum_prob_total > 0 else 0.0
                 true_positives = len(expected_set & set(prob_rows))
                 coverage = true_positives / len(expected_set)
+                # if(coverage<1.0):
+                #
+                #     print(f"expected_set: {expected_set}")
+                #     print(prob_rows)
                 results_with_truth_set.append((expected_set,prob_rows,prob_values))
 
             else:
@@ -50,6 +70,12 @@ def calculate_expected_values(query_file_name_expected, query_file_name_actual, 
                 total_actual = len(expected_set)
                 total_predicted = len(actual_set)
                 exp_precision = true_positives / total_predicted if total_predicted > 0 else 1.0
+                if(exp_precision<1.0):
+                    print(expected_set)
+                    print(actual_set)
+                    print(true_positives)
+                    print(total_predicted)
+                    print(actual_q)
                 exp_recall = true_positives / total_actual if total_actual > 0 else 1.0
                 exp_noise = false_positives / total_predicted if total_predicted > 0 else 0.0
                 coverage = true_positives / len(expected_set)
