@@ -107,7 +107,7 @@ def compute_actions(df_data, fd_constraints, constraint_hardness, delete_cost=1,
             fd_scores = {}
             total_score = 0.0
             rv_counter = 1
-            if kmax > 0.5 * num_rows:
+            if kmax >= 0.4 * num_rows:
                 uuid_dict = mark_high_frequence_subclusters(cluster, rhs, kmax)
                 all_uuids = cluster['uuid']
                 for fd_rhs_value, uuid_list in uuid_dict.items():
