@@ -81,16 +81,8 @@ def calculate_expected_values(query_file_name_expected, query_file_name_actual,
                 sum_prob_wrong = sum(p for row, p in zip(prob_rows, prob_values) if row not in expected_set)
                 sum_prob_total = sum(prob_values)
 
-                if len(prob_rows) == 0:
-                    exp_precision = 1.0
-                    exp_noise = 0.0
-                else:
-                    if sum_prob_total > 0:
-                        exp_precision = sum_prob_correct / sum_prob_total
-                        exp_noise = sum_prob_wrong / sum_prob_total
-                    else:
-                        exp_precision = float("nan")
-                        exp_noise = float("nan")
+                exp_precision = sum_prob_correct / sum_prob_total if sum_prob_total!= 0 else 1.0
+                exp_noise = sum_prob_wrong / sum_prob_total if sum_prob_total!= 0 else 0.0
 
                 exp_recall = sum_prob_correct / len(expected_set) if expected_set else 1.0
                 true_positives = len(expected_set & set(prob_rows))
@@ -135,25 +127,22 @@ def summarize_results(results):
     return avg_precision, avg_recall, avg_coverage, avg_noise
 
 
-def compute_precision_recall_at_thresholds(results, thresholds=None):
-    if thresholds is None:
-        thresholds = np.arange(0.0, 1.00, 0.01)
+import numpy as np
+
+def compute_precision_recall_at_thresholds(results, thresholds):
 
     all_precision_at_p = {p: [] for p in thresholds}
     all_recall_at_p = {p: [] for p in thresholds}
 
     for truth_set, prob_rows, prob_values in results:
         for P in thresholds:
-            selected = [(row, p) for row, p in zip(prob_rows, prob_values) if p > P]
-            selected_rows = set(row for row, _ in selected)
+            selected = [(row, p) for row, p in zip(prob_rows, prob_values) if p >= P]
+            selected_set = set(row for row, _ in selected)
 
-            if not selected:
-                prec = 0.0
-                rec = 0.0
-            else:
-                tp = len(selected_rows & truth_set)
-                prec = tp / len(selected_rows)
-                rec = tp / len(truth_set) if truth_set else 1.0
+
+            tp = len(selected_set & truth_set)
+            prec = tp / len(selected_set) if len(selected_set)!=0 else 1.0
+            rec = tp / len(truth_set) if len(truth_set)!=0 else 1.0
 
             all_precision_at_p[P].append(prec)
             all_recall_at_p[P].append(rec)
