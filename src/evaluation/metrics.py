@@ -136,7 +136,7 @@ def compute_precision_recall_at_thresholds(results, thresholds):
 
     for truth_set, prob_rows, prob_values in results:
         for P in thresholds:
-            selected = [(row, p) for row, p in zip(prob_rows, prob_values) if p >= P]
+            selected = [(row, p) for row, p in zip(prob_rows, prob_values) if p >= P * (1 - 1e-9)]
             selected_set = set(row for row, _ in selected)
 
 

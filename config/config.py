@@ -1,18 +1,20 @@
+import os
 DATABASES = {
     "primary": {
         "driver": "postgresql",
-        "host": "castle.ewi.utwente.nl",
-        "port": 5432,
+        "host": "localhost",
+        "port": 5433,
         "user": "anushka",
-        "password": "HV8Teypn",
-        "dbname": "anushka",
+        "password": os.environ.get("PRA_DB_PASSWORD", ""),
+        "dbname": "anushka_local",
+        "driver": "postgresql+psycopg2",
     },
     "secondary": {
         "driver": "postgresql",
         "host": "localhost",
         "port": 5432,
         "user": "holocleanuser",
-        "password": "abcd1234",
+        "password": os.environ.get("HOC_DB_PASSWORD", ""),
         "dbname": "holo",
     },
 }

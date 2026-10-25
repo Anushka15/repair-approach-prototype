@@ -773,3 +773,36 @@ def prune_actions_by_global_bound(actions_by_cluster, cluster_id):
         removed += before - len(per_fd[fd_id])
 
 
+# Problem: Current code - 1 RV per FD per cluster. 
+# In clusters that violate several FDs, this puts probability on combinations that aren’t repairs. 
+# In those worlds the cluster has no tuple at all, which costs expected recall. 
+
+# Fix: One RV per violating cluster, whose alternatives are that cluster’s minimal repairs. 
+# take the minimal repairs PRA already finds and relabels them cl{j}=1, cl{j}=2, and so on. 
+# Each one gets the product of its per-FD probabilities, renormalized within the cluster. 
+# Nothing else in PRA changes.
+def to_cluster_rvs(all_actions, rv_probs, prefix="cl"):
+    scale = 10**12
+    by_cluster = defaultdict(list)
+    for a in all_actions:
+        by_cluster[a["Cluster"]].append(a)
+
+    new_actions, cluster_probs = [], {}
+    for cid, reps in by_cluster.items():
+        weights = []
+        for r in reps:
+            w = 1.0
+            for lab in r["sentence"].split("&"):
+                w *= rv_probs[lab.strip()]
+            weights.append(w)
+        total = sum(weights)
+        n = len(reps)
+        probs = [w / total for w in weights] if total > 0 else [1 / n] * n
+        units = [math.floor(p * scale) for p in probs]
+        if sum(units) >= scale:
+            units[units.index(max(units))] -= 1
+        for k, (r, u) in enumerate(zip(reps, units), start=1):
+            label = f"{prefix}{cid}={k}"
+            new_actions.append({**r, "sentence": label})
+            cluster_probs[label] = u / scale
+    return new_actions, cluster_probs
